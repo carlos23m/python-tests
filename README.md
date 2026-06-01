@@ -1,81 +1,135 @@
 # weather-pipeline-qa
 
-A small weather-data ingest pipeline and the automated test suite around it,
-focused on data-integrity testing of event-driven flows — the same class of
-problem I handled in production at IntelliCentrics, now expressed in code
-instead of manual verification steps.
+A weather-data ingest pipeline with an automated test suite focused on
+data-integrity verification of event-driven flows — the same class of problem
+I handled in production at IntelliCentrics, now expressed in code instead of
+manual verification steps.
 
-## What's here
+## Architecture
 
 ```
-Three layers of tests
- ├── api_external/   Restful-booker — full CRUD + auth in Python (pytest + httpx)
- ├── your pipeline   FastAPI → Kafka → Postgres, with real data-integrity checks
- └── aws/            S3 put/get and SQS send/receive against LocalStack
+HTTP client
+    │
+    ▼
+FastAPI  ──POST /readings──▶  Kafka (weather-readings topic)
+    │                                    │
+GET /readings/{id}              consumer process
+    │                                    │
+    └──────────────── Postgres ◀─────────┘
+                     (readings table)
+
+LocalStack: S3 + SQS smoke-tested independently
 ```
 
-**Layer 1 — Restful-booker** (`tests/api_external/`)  
-Status codes, payload shape, schema validation, auth/token flow, negative cases
-(400 / 401 / 404, bad payloads, missing fields). Pure Python rewrite of the
-Postman work I already know; nothing here needs Docker.
+## Test suite — 54 tests across 4 layers
 
-**Layer 2 — own pipeline** (`tests/messaging/`, `tests/api/`, `tests/performance/`)  
-The part that matches the job description. A FastAPI service ingests weather
-readings, publishes them to Kafka, and a consumer writes them to Postgres.
-The messaging tests verify *no reading is silently lost* — the data-integrity
-guarantee that matters in event-driven systems.
+### Layer 1 · External API (`tests/api_external/`) — 21 tests, no Docker needed
+
+Tests against the public [Restful-booker](https://restful-booker.herokuapp.com) API.
+
+| File | What it covers |
+|---|---|
+| `test_auth.py` | Token acquisition, wrong credentials, missing fields |
+| `test_booking_crud.py` | Full CRUD cycle — create, read, PUT, PATCH, delete + 404 verification |
+| `test_negative.py` | Missing fields, invalid dates, wrong IDs, unauthenticated mutations, garbage tokens |
+
+### Layer 2 · Own pipeline (`tests/unit/`, `tests/api/`, `tests/messaging/`) — 29 tests
+
+**Unit** (`tests/unit/`) — 8 tests, pure Python, no infrastructure  
+Pydantic model validation: boundaries (humidity 0–100), type coercion, required fields.
+
+**API** (`tests/api/`) — 10 tests, needs app + Kafka + Postgres  
+FastAPI endpoint contract: status codes, response shape, field schema, `limit` parameter.
+
+**Messaging** (`tests/messaging/`) — 11 tests, needs full stack
+
+| File | What it verifies |
+|---|---|
+| `test_pipeline_e2e.py` | Full path: HTTP → Kafka → consumer → Postgres |
+| `test_no_data_loss.py` | Publish 20 messages → exactly 20 rows in Postgres |
+| `test_ordering.py` | Messages land in publish order (single partition) |
+| `test_duplicates.py` | At-least-once behaviour documented; change detector for future deduplication |
+| `test_malformed.py` | Consumer survives 6 poison-message shapes without crashing; range-validation gap documented |
+
+### Layer 3 · AWS / LocalStack (`tests/aws/`) — 2 tests
+
+S3 put/get and SQS send/receive against a local LocalStack container.
+
+### Load test (`tests/performance/`)
+
+Locust script: 5× POST `/readings`, 2× GET `/readings/{id}`, 1× GET `/health`.  
+Run with `--exit-code-on-error 1` in CI so a >5% error rate fails the build.
 
 ## Stack
 
-| Layer | Technology |
+| Component | Technology |
 |---|---|
 | API service | FastAPI + Uvicorn |
-| Message bus | Apache Kafka (via Confluent images) |
-| Store | PostgreSQL 15 |
-| Fake AWS | LocalStack (S3 / SQS) |
-| Test runner | pytest |
+| Message bus | Apache Kafka (Confluent 7.6) |
+| Database | PostgreSQL 15 |
+| Fake AWS | LocalStack 3.4 (S3, SQS, SNS) |
+| ORM | SQLAlchemy 2 |
+| Test runner | pytest 8 + pytest-asyncio |
 | HTTP client | httpx |
 | Load tests | Locust |
+| Lint | ruff |
 | CI | GitHub Actions |
 
 ## Quick start
 
 ```bash
-# bring up the whole stack (app + consumer + kafka + postgres + localstack)
-docker compose up -d
+# 1. Start infrastructure
+docker compose up -d postgres zookeeper kafka localstack
 
-# wait ~20 s for all services to be healthy, then
+# 2. Wait for services to be healthy (~20 s), then start the app
+docker compose up -d app consumer
+
+# 3. Install test dependencies
 pip install -r requirements.txt
 
-# Layer 1 — no Docker needed
-pytest tests/api_external/ -v
-
-# Layer 2 — needs Docker stack
-pytest tests/unit/ tests/api/ tests/messaging/ -v
-
-# Layer 3 — AWS / LocalStack
-pytest tests/aws/ -v
-
-# Load test (against local app only, never a public API)
-locust -f tests/performance/locustfile.py --headless -u 20 -r 2 --run-time 60s
+# 4. Run each layer
+pytest tests/api_external/ -v                     # no Docker needed
+pytest tests/unit/ -v                             # no Docker needed
+pytest tests/api/ tests/messaging/ tests/aws/ -v  # needs full stack
 ```
+
+**Environment variables** (all have defaults matching docker-compose.yml):
+
+| Variable | Default |
+|---|---|
+| `APP_BASE_URL` | `http://localhost:8000` |
+| `DATABASE_URL` | `postgresql://weather:weather@localhost:5432/weather` |
+| `KAFKA_BOOTSTRAP_SERVERS` | `localhost:9092` |
+| `KAFKA_TOPIC` | `weather-readings` |
 
 ## CI
 
-Every push runs: lint (ruff) → unit → api → messaging integration → 60 s load
-smoke test. See [.github/workflows/ci.yml](.github/workflows/ci.yml).
+Every push runs in order:
 
-## Load test results
+1. **Lint** — `ruff check .`
+2. **External API tests** — no infrastructure needed
+3. **Start infra** — Postgres, Zookeeper, Kafka, LocalStack via Docker Compose; health-checked before proceeding
+4. **Start app + consumer** — waited on via `GET /health` poll
+5. **Unit → API → Messaging → AWS** — each layer in sequence
+6. **Load smoke** — 60 s Locust run, fails build on >5% error rate
 
-Run `locust -f tests/performance/locustfile.py --headless -u 20 -r 2 --run-time 60s --host http://localhost:8000` locally and paste p50/p95/RPS here.
+See [.github/workflows/ci.yml](.github/workflows/ci.yml).
 
-## Project background
+## Notable design decisions
 
-At IntelliCentrics I verified data flows manually — that a message published to
-a queue eventually landed in the right database, in the right shape, with no
-duplicates. This repo automates exactly that verification in Python, adds
-performance baselines, and includes S3/SQS smoke tests against LocalStack.
+**Dual Kafka listeners** — `docker-compose.yml` configures two listeners:
+`PLAINTEXT://localhost:9092` for host-side test runners and `PLAINTEXT_INTERNAL://kafka:29092`
+for the app/consumer containers. A single `localhost:9092` advertised listener causes
+containers to resolve the broker address to themselves.
+
+**Consumer poison-message handling** — the `value_deserializer` in `KafkaConsumer` runs
+before the loop body, so a `JSONDecodeError` there bypasses any `try/except` inside the
+loop and crashes the process. JSON parsing is done manually inside the guard instead.
+
+**Polling pattern** — messaging tests use a shared `wait_for_rows` fixture (in `conftest.py`)
+rather than inline `time.sleep` loops. One place to tune the timeout; one consistent
+failure message.
 
 ---
 
-Designed and created by Carlos Mendez - www.linkedin.com/in/carlos-mendez1 - CR - 2026
+Designed and created by Carlos Mendez · [linkedin.com/in/carlos-mendez1](https://www.linkedin.com/in/carlos-mendez1) · 2026
