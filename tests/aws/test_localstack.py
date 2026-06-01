@@ -36,6 +36,7 @@ def sqs():
 
 
 def test_s3_put_and_get(s3):
+    """Write an object to S3 and read it back — confirms LocalStack S3 is wired up correctly."""
     # uuid suffix prevents name collisions when tests run concurrently or the container is reused
     bucket = f"weather-test-{uuid.uuid4().hex[:8]}"
     key = "readings/sample.json"
@@ -49,6 +50,7 @@ def test_s3_put_and_get(s3):
 
 
 def test_sqs_send_and_receive(sqs):
+    """Send a message to SQS and receive it back — confirms LocalStack SQS is wired up correctly."""
     # uuid suffix for the same collision-avoidance reason as the S3 bucket above
     queue_name = f"weather-events-{uuid.uuid4().hex[:8]}"
     queue_url = sqs.create_queue(QueueName=queue_name)["QueueUrl"]

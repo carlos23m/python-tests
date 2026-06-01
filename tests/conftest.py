@@ -14,11 +14,13 @@ APP_BASE_URL = os.getenv("APP_BASE_URL", "http://localhost:8000")
 
 @pytest.fixture(scope="session")
 def base_url():
+    """Base URL of the running FastAPI app, configurable via APP_BASE_URL env var."""
     return APP_BASE_URL
 
 
 @pytest.fixture(scope="session")
 def db_conn():
+    """Open one psycopg2 connection for the whole test session and close it on teardown."""
     # One connection for the whole test session — cheaper than reconnecting per test
     conn = psycopg2.connect(DATABASE_URL)
     yield conn
@@ -55,6 +57,7 @@ def wait_for_rows(db):
 
 @pytest.fixture(scope="session")
 def kafka_producer():
+    """Shared KafkaProducer with JSON serialization for use across all messaging tests."""
     # Session-scoped: one producer for all messaging tests; avoids repeated broker handshakes
     producer = KafkaProducer(
         bootstrap_servers=KAFKA_BOOTSTRAP,

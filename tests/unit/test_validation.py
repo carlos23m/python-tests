@@ -9,27 +9,32 @@ from app.main import WeatherReading
 
 
 def test_valid_reading_parses_correctly():
+    """A fully valid payload parses without error and fields are accessible."""
     r = WeatherReading(station_id="S01", temperature_c=22.5, humidity_pct=60.0)
     assert r.station_id == "S01"
     assert r.temperature_c == 22.5
 
 
 def test_humidity_above_100_is_rejected():
+    """humidity_pct is bounded at 100 — anything above triggers a ValidationError."""
     with pytest.raises(ValidationError):
         WeatherReading(station_id="S01", temperature_c=22.0, humidity_pct=101)
 
 
 def test_humidity_below_0_is_rejected():
+    """humidity_pct is bounded at 0 — anything below triggers a ValidationError."""
     with pytest.raises(ValidationError):
         WeatherReading(station_id="S01", temperature_c=22.0, humidity_pct=-1)
 
 
 def test_empty_station_id_is_rejected():
+    """An empty string for station_id violates the min_length=1 constraint."""
     with pytest.raises(ValidationError):
         WeatherReading(station_id="", temperature_c=22.0, humidity_pct=50)
 
 
 def test_missing_temperature_is_rejected():
+    """temperature_c is required — omitting it raises ValidationError."""
     with pytest.raises(ValidationError):
         WeatherReading(station_id="S01", humidity_pct=50)
 
@@ -41,10 +46,12 @@ def test_negative_temperature_is_valid():
 
 
 def test_boundary_humidity_0_is_valid():
+    """Lower boundary value (0) is accepted — boundary is inclusive."""
     r = WeatherReading(station_id="S01", temperature_c=0.0, humidity_pct=0)
     assert r.humidity_pct == 0
 
 
 def test_boundary_humidity_100_is_valid():
+    """Upper boundary value (100) is accepted — boundary is inclusive."""
     r = WeatherReading(station_id="S01", temperature_c=0.0, humidity_pct=100)
     assert r.humidity_pct == 100

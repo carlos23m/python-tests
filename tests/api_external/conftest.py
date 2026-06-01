@@ -7,6 +7,7 @@ BOOKER_BASE = "https://restful-booker.herokuapp.com"
 
 @pytest.fixture(scope="session")
 def booker_url():
+    """Base URL for the public Restful-booker API."""
     return BOOKER_BASE
 
 
@@ -27,5 +28,6 @@ def auth_token(booker_url):
 
 @pytest.fixture(scope="session")
 def auth_headers(auth_token):
+    """Pre-built Cookie header dict ready to pass into any mutating request."""
     # Restful-booker uses Cookie-based auth, not a Bearer token in Authorization header
     return {"Cookie": f"token={auth_token}"}

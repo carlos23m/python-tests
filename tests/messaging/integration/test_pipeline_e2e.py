@@ -14,6 +14,7 @@ DRAIN_TIMEOUT_S = 20
 
 
 def test_one_reading_flows_through_full_pipeline(base_url, db):
+    """Full path: POST → Kafka → consumer → Postgres. Asserts field values are preserved end-to-end."""
     # Unique suffix prevents collision if the DB isn't wiped between runs
     station_id = f"e2e-{uuid.uuid4().hex[:8]}"
     payload = {
@@ -48,6 +49,7 @@ def test_one_reading_flows_through_full_pipeline(base_url, db):
 
 
 def test_multiple_readings_same_station_all_persisted(base_url, db):
+    """POSTing N readings for the same station results in N rows — no partial writes."""
     station_id = f"multi-e2e-{uuid.uuid4().hex[:8]}"
     n = 5
     for i in range(n):
@@ -71,6 +73,7 @@ def test_multiple_readings_same_station_all_persisted(base_url, db):
 
 
 def test_query_endpoint_reflects_persisted_data(base_url, db):
+    """GET /readings/{id} returns the data that was submitted via POST — read-after-write consistency."""
     station_id = f"get-e2e-{uuid.uuid4().hex[:8]}"
     resp = httpx.post(
         f"{base_url}/readings",

@@ -25,11 +25,13 @@ class Reading(Base):
 
 
 def init_db():
+    """Create all tables that don't yet exist. Safe to call on every startup."""
     # create_all is idempotent — safe to call on every startup; skips tables that already exist
     Base.metadata.create_all(bind=engine)
 
 
 def get_recent_readings(station_id: str, limit: int = 50):
+    """Return the most recent `limit` readings for a station, newest first."""
     with SessionLocal() as session:
         rows = (
             session.query(Reading)
@@ -51,6 +53,7 @@ def get_recent_readings(station_id: str, limit: int = 50):
 
 
 def insert_reading(data: dict):
+    """Persist a single reading dict to Postgres. Called by the consumer for every Kafka message."""
     with SessionLocal() as session:
         row = Reading(**data)
         session.add(row)

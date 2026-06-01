@@ -15,6 +15,7 @@ DRAIN_TIMEOUT_S = 10
 
 
 def test_duplicate_message_behaviour(kafka_producer, db, wait_for_rows):
+    """Publishes the same payload twice and documents the resulting row count (at-least-once = 2)."""
     station_id = f"dup-test-{uuid.uuid4().hex[:8]}"
     payload = {
         "station_id": station_id,

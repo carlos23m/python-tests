@@ -11,11 +11,13 @@ DRAIN_TIMEOUT_S = 15
 
 
 def _count_rows(db, station_id: str) -> int:
+    """Return the number of persisted rows for a given station_id."""
     db.execute("SELECT COUNT(*) FROM readings WHERE station_id = %s", (station_id,))
     return db.fetchone()[0]
 
 
 def test_publish_n_messages_all_persist(kafka_producer, db, wait_for_rows):
+    """Publish N messages and assert exactly N rows land in Postgres — no silent drops."""
     # uuid suffix isolates this run's rows so a leftover table from a prior run can't inflate the count
     station_id = f"loss-test-{uuid.uuid4().hex[:8]}"
 

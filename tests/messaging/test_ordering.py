@@ -12,6 +12,7 @@ DRAIN_TIMEOUT_S = 15
 
 
 def test_messages_persisted_in_published_order(kafka_producer, db, wait_for_rows):
+    """Messages arrive in Postgres in the same sequence they were published to Kafka."""
     station_id = f"order-test-{uuid.uuid4().hex[:8]}"
 
     # temperature_c doubles as a sequence number — avoids adding a dedicated field,

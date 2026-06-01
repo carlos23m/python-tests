@@ -21,6 +21,7 @@ def raw_producer():
 
 
 def _good_payload(station_id: str) -> dict:
+    """Return a valid reading dict used as a sentinel after each poison message."""
     return {
         "station_id": station_id,
         "temperature_c": 20.0,
@@ -30,6 +31,7 @@ def _good_payload(station_id: str) -> dict:
 
 
 def _assert_survived(db, station_id_after: str) -> None:
+    """Assert the sentinel row arrived — proves the consumer kept running after the poison message."""
     db.execute(
         "SELECT COUNT(*) FROM readings WHERE station_id = %s", (station_id_after,)
     )
@@ -43,6 +45,7 @@ def _assert_survived(db, station_id_after: str) -> None:
 def test_consumer_survives_poison_message_and_processes_next(
     raw_producer, kafka_producer, db, wait_for_rows
 ):
+    """Invalid JSON is skipped; the following valid message is still processed."""
     station_id_after = f"after-poison-{uuid.uuid4().hex[:8]}"
 
     raw_producer.send(TOPIC, value=b"THIS IS NOT JSON {{{}}")
@@ -55,6 +58,7 @@ def test_consumer_survives_poison_message_and_processes_next(
 
 
 def test_empty_bytes_message_is_skipped(raw_producer, kafka_producer, db, wait_for_rows):
+    """An empty byte payload is skipped; the consumer keeps running."""
     station_id_after = f"after-empty-{uuid.uuid4().hex[:8]}"
 
     raw_producer.send(TOPIC, value=b"")
@@ -95,6 +99,7 @@ def test_null_json_message_is_skipped(raw_producer, kafka_producer, db, wait_for
 # ── Missing / wrong-typed fields ───────────────────────────────────────────────
 
 def test_missing_required_field_is_skipped(kafka_producer, db, wait_for_rows):
+    """A message without station_id raises KeyError in the consumer — it must be caught and skipped."""
     station_id_after = f"after-missing-{uuid.uuid4().hex[:8]}"
 
     kafka_producer.send(TOPIC, value={"temperature_c": 20.0, "humidity_pct": 50.0})
@@ -107,6 +112,7 @@ def test_missing_required_field_is_skipped(kafka_producer, db, wait_for_rows):
 
 
 def test_wrong_type_for_temperature_is_skipped(kafka_producer, db, wait_for_rows):
+    """A string temperature raises ValueError on float() cast — must be caught and skipped."""
     station_id_after = f"after-badtype-{uuid.uuid4().hex[:8]}"
 
     kafka_producer.send(

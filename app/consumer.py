@@ -21,7 +21,13 @@ GROUP_ID = os.getenv("KAFKA_GROUP_ID", "weather-consumer")
 
 
 def run():
+    """
+    Start the consumer loop: connect to Kafka, poll indefinitely, persist each reading to Postgres.
+    Intended to run as a long-lived process — it only returns if the Kafka connection is closed.
+    """
+    # Ensure the readings table exists before the loop starts receiving messages
     init_db()
+
     consumer = KafkaConsumer(
         TOPIC,
         bootstrap_servers=BOOTSTRAP_SERVERS,
@@ -37,10 +43,17 @@ def run():
     logger.info("Consumer started — listening on topic '%s'", TOPIC)
     for message in consumer:
         try:
+            # Decode manually inside the loop — if value_deserializer were used instead,
+            # a JSONDecodeError would be raised before entering the try/except and crash the process
             data = json.loads(message.value.decode("utf-8"))
+
+            # timestamp is optional in the message; fall back to now so the column is never NULL
             raw_ts = data.get("timestamp")
+
             insert_reading({
                 "station_id": data["station_id"],
+                # Explicit float() cast so a string value like "20.5" raises ValueError here
+                # rather than being silently stored as the wrong type
                 "temperature_c": float(data["temperature_c"]),
                 "humidity_pct": float(data["humidity_pct"]),
                 "timestamp": datetime.fromisoformat(raw_ts) if raw_ts else datetime.now(timezone.utc),

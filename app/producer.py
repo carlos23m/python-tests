@@ -11,6 +11,7 @@ _producer = None
 
 
 def _get_producer() -> KafkaProducer:
+    """Return the shared KafkaProducer, creating it on first call."""
     global _producer
     # Lazy init: connection is deferred until the first publish so import-time errors
     # (e.g. broker not up yet) don't prevent the app from starting
@@ -23,6 +24,7 @@ def _get_producer() -> KafkaProducer:
 
 
 def publish_reading(payload: dict) -> None:
+    """Publish one reading dict to Kafka and block until the broker acknowledges it."""
     producer = _get_producer()
     future = producer.send(TOPIC, value=payload)
     future.get(timeout=5)  # block until broker acks; raises on failure

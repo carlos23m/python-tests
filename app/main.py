@@ -9,6 +9,7 @@ from app.producer import publish_reading
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
+    """Create DB tables on startup; nothing to clean up on shutdown."""
     init_db()
     yield
 
@@ -44,4 +45,5 @@ def get_readings(station_id: str, limit: int = 50):
 
 @app.get("/health")
 def health():
+    """Liveness probe — returns 200 as long as the process is running."""
     return {"status": "ok"}
