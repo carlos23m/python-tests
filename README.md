@@ -1,4 +1,4 @@
-# weather-pipeline-qa
+# kafka-pipeline-qa
 
 A weather-data ingest pipeline with an automated test suite focused on
 data-integrity verification of event-driven flows — the same class of problem
