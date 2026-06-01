@@ -1,14 +1,13 @@
 # Designed and created by Carlos Mendez - www.linkedin.com/in/carlos-mendez1 - CR - 2026
 """
 THE key data-integrity test: publish N messages, assert N rows land in Postgres.
-This mirrors the manual verification work from IntelliCentrics, now automated.
 """
-import time
+import os
 import uuid
 
-TOPIC = "weather-readings"
+TOPIC = os.getenv("KAFKA_TOPIC", "weather-readings")
 N = 20
-DRAIN_TIMEOUT_S = 15  # how long to wait for the consumer to catch up
+DRAIN_TIMEOUT_S = 15
 
 
 def _count_rows(db, station_id: str) -> int:
@@ -16,10 +15,9 @@ def _count_rows(db, station_id: str) -> int:
     return db.fetchone()[0]
 
 
-def test_publish_n_messages_all_persist(kafka_producer, db):
+def test_publish_n_messages_all_persist(kafka_producer, db, wait_for_rows):
     station_id = f"loss-test-{uuid.uuid4().hex[:8]}"
 
-    # Publish N readings for a unique station_id
     for i in range(N):
         kafka_producer.send(
             TOPIC,
@@ -32,12 +30,7 @@ def test_publish_n_messages_all_persist(kafka_producer, db):
         )
     kafka_producer.flush()
 
-    # Wait for the consumer process to drain and write to Postgres
-    deadline = time.time() + DRAIN_TIMEOUT_S
-    while time.time() < deadline:
-        if _count_rows(db, station_id) >= N:
-            break
-        time.sleep(0.5)
+    wait_for_rows(station_id, N, timeout=DRAIN_TIMEOUT_S)
 
     persisted = _count_rows(db, station_id)
     assert persisted == N, (

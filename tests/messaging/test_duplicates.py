@@ -7,14 +7,14 @@ NOTE: The current consumer does NOT deduplicate — this test documents the
 current behaviour (two rows) and acts as a change-detector if you later
 add deduplication logic (at which point it should assert count == 1).
 """
-import time
+import os
 import uuid
 
-TOPIC = "weather-readings"
+TOPIC = os.getenv("KAFKA_TOPIC", "weather-readings")
 DRAIN_TIMEOUT_S = 10
 
 
-def test_duplicate_message_behaviour(kafka_producer, db):
+def test_duplicate_message_behaviour(kafka_producer, db, wait_for_rows):
     station_id = f"dup-test-{uuid.uuid4().hex[:8]}"
     payload = {
         "station_id": station_id,
@@ -27,15 +27,7 @@ def test_duplicate_message_behaviour(kafka_producer, db):
     kafka_producer.send(TOPIC, value=payload)
     kafka_producer.flush()
 
-    # wait for consumer to drain both
-    deadline = time.time() + DRAIN_TIMEOUT_S
-    while time.time() < deadline:
-        db.execute(
-            "SELECT COUNT(*) FROM readings WHERE station_id = %s", (station_id,)
-        )
-        if db.fetchone()[0] >= 2:
-            break
-        time.sleep(0.5)
+    wait_for_rows(station_id, 2, timeout=DRAIN_TIMEOUT_S)
 
     db.execute("SELECT COUNT(*) FROM readings WHERE station_id = %s", (station_id,))
     count = db.fetchone()[0]

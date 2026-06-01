@@ -1,5 +1,6 @@
 # Designed and created by Carlos Mendez - www.linkedin.com/in/carlos-mendez1 - CR - 2026
 import os
+import time
 import pytest
 import psycopg2
 from kafka import KafkaProducer
@@ -31,6 +32,21 @@ def db(db_conn):
     yield cur
     db_conn.rollback()
     cur.close()
+
+
+@pytest.fixture
+def wait_for_rows(db):
+    """Poll Postgres until at least `expected` rows exist for station_id, or timeout expires."""
+    def _wait(station_id: str, expected: int, timeout: int = 20) -> None:
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            db.execute(
+                "SELECT COUNT(*) FROM readings WHERE station_id = %s", (station_id,)
+            )
+            if db.fetchone()[0] >= expected:
+                return
+            time.sleep(0.5)
+    return _wait
 
 
 @pytest.fixture(scope="session")

@@ -91,8 +91,20 @@ def test_full_update_with_auth_returns_200(booker_url, created_booking_id, auth_
 # ── PARTIAL UPDATE (PATCH) ────────────────────────────────────────────────────
 
 def test_partial_update_firstname(booker_url, created_booking_id, auth_headers):
-    # TODO: PATCH only {"firstname": "Updated"} and assert only that field changed
-    ...
+    before = httpx.get(f"{booker_url}/booking/{created_booking_id}", timeout=10).json()
+
+    resp = httpx.patch(
+        f"{booker_url}/booking/{created_booking_id}",
+        json={"firstname": "Updated"},
+        headers=auth_headers,
+        timeout=10,
+    )
+    assert resp.status_code == 200
+    after = resp.json()
+    assert after["firstname"] == "Updated"
+    assert after["lastname"] == before["lastname"]
+    assert after["totalprice"] == before["totalprice"]
+    assert after["bookingdates"] == before["bookingdates"]
 
 
 # ── DELETE ────────────────────────────────────────────────────────────────────
@@ -103,10 +115,18 @@ def test_delete_requires_auth(booker_url, created_booking_id):
 
 
 def test_delete_with_auth_returns_201(booker_url, auth_headers):
-    # create a throwaway booking then delete it
-    # TODO:
-    #   1. POST a new booking → get its ID
-    #   2. DELETE /booking/{id} with auth_headers
-    #   3. assert status 201 (Restful-booker's odd delete response code)
-    #   4. assert GET /booking/{id} now returns 404
-    ...
+    resp = httpx.post(f"{booker_url}/booking", json={
+        "firstname": "Delete", "lastname": "Me", "totalprice": 1,
+        "depositpaid": False,
+        "bookingdates": {"checkin": "2026-09-01", "checkout": "2026-09-02"},
+    }, timeout=10)
+    assert resp.status_code == 200
+    booking_id = resp.json()["bookingid"]
+
+    resp = httpx.delete(
+        f"{booker_url}/booking/{booking_id}", headers=auth_headers, timeout=10
+    )
+    assert resp.status_code == 201
+
+    resp = httpx.get(f"{booker_url}/booking/{booking_id}", timeout=10)
+    assert resp.status_code == 404

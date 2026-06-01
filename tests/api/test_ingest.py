@@ -73,6 +73,13 @@ def test_get_readings_returns_200(client):
 
 
 def test_get_readings_schema(client):
-    # TODO: assert each item in readings has id, station_id, temperature_c,
-    # humidity_pct, timestamp keys
-    ...
+    resp = client.get("/readings/TEST-001")
+    assert resp.status_code == 200
+    for item in resp.json()["readings"]:
+        assert {"id", "station_id", "temperature_c", "humidity_pct", "timestamp"} <= set(item.keys())
+
+
+def test_get_readings_respects_limit(client):
+    resp = client.get("/readings/TEST-001?limit=1")
+    assert resp.status_code == 200
+    assert len(resp.json()["readings"]) <= 1
