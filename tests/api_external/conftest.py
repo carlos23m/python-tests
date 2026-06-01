@@ -13,6 +13,7 @@ def booker_url():
 @pytest.fixture(scope="session")
 def auth_token(booker_url):
     """Obtain a real token from Restful-booker once per session."""
+    # session-scoped: token doesn't expire mid-suite, so one request is enough
     resp = httpx.post(
         f"{booker_url}/auth",
         json={"username": "admin", "password": "password123"},
@@ -26,4 +27,5 @@ def auth_token(booker_url):
 
 @pytest.fixture(scope="session")
 def auth_headers(auth_token):
+    # Restful-booker uses Cookie-based auth, not a Bearer token in Authorization header
     return {"Cookie": f"token={auth_token}"}

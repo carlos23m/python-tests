@@ -6,11 +6,14 @@ from kafka import KafkaProducer
 BOOTSTRAP_SERVERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
 TOPIC = os.getenv("KAFKA_TOPIC", "weather-readings")
 
+# Module-level singleton — avoids opening a new broker connection on every request
 _producer = None
 
 
 def _get_producer() -> KafkaProducer:
     global _producer
+    # Lazy init: connection is deferred until the first publish so import-time errors
+    # (e.g. broker not up yet) don't prevent the app from starting
     if _producer is None:
         _producer = KafkaProducer(
             bootstrap_servers=BOOTSTRAP_SERVERS,

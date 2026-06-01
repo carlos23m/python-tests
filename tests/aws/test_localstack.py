@@ -13,6 +13,8 @@ REGION = "us-east-1"
 
 @pytest.fixture(scope="module")
 def s3():
+    # "test"/"test" are the conventional dummy credentials for LocalStack —
+    # LocalStack doesn't validate them, but boto3 requires non-empty values
     return boto3.client(
         "s3",
         endpoint_url=LOCALSTACK_URL,
@@ -34,6 +36,7 @@ def sqs():
 
 
 def test_s3_put_and_get(s3):
+    # uuid suffix prevents name collisions when tests run concurrently or the container is reused
     bucket = f"weather-test-{uuid.uuid4().hex[:8]}"
     key = "readings/sample.json"
     body = b'{"station_id": "s3-smoke", "temperature_c": 20.0}'
@@ -46,6 +49,7 @@ def test_s3_put_and_get(s3):
 
 
 def test_sqs_send_and_receive(sqs):
+    # uuid suffix for the same collision-avoidance reason as the S3 bucket above
     queue_name = f"weather-events-{uuid.uuid4().hex[:8]}"
     queue_url = sqs.create_queue(QueueName=queue_name)["QueueUrl"]
 

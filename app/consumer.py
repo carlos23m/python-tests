@@ -26,7 +26,11 @@ def run():
         TOPIC,
         bootstrap_servers=BOOTSTRAP_SERVERS,
         group_id=GROUP_ID,
+        # earliest: on first start (or if offsets are lost) replay from the beginning
+        # so no messages published before the consumer came up are silently dropped
         auto_offset_reset="earliest",
+        # auto-commit gives at-least-once delivery; a message can be re-delivered if the
+        # consumer crashes between processing and the next commit interval
         enable_auto_commit=True,
     )
 

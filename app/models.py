@@ -15,13 +15,17 @@ class Reading(Base):
     __tablename__ = "readings"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
+    # index=True: GET /readings/{station_id} filters on this column — without the index
+    # every query would be a full table scan as the readings table grows
     station_id = Column(String, nullable=False, index=True)
     temperature_c = Column(Float, nullable=False)
     humidity_pct = Column(Float, nullable=False)
+    # timezone-naive UTC by convention; storing tz-aware datetimes requires TIMESTAMPTZ
     timestamp = Column(DateTime, default=datetime.utcnow, nullable=False)
 
 
 def init_db():
+    # create_all is idempotent — safe to call on every startup; skips tables that already exist
     Base.metadata.create_all(bind=engine)
 
 

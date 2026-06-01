@@ -38,6 +38,7 @@ def test_create_booking_response_shape(booker_url):
 @pytest.fixture(scope="module")
 def created_booking_id(booker_url):
     """Create one booking and return its ID for use in read/update/delete tests."""
+    # module-scoped: shared across all CRUD tests so only one booking is created on the server
     resp = httpx.post(f"{booker_url}/booking", json=BOOKING_PAYLOAD, timeout=10)
     return resp.json()["bookingid"]
 
@@ -115,6 +116,7 @@ def test_delete_requires_auth(booker_url, created_booking_id):
 
 
 def test_delete_with_auth_returns_201(booker_url, auth_headers):
+    # Create a throwaway booking so deleting it doesn't affect the shared created_booking_id fixture
     resp = httpx.post(f"{booker_url}/booking", json={
         "firstname": "Delete", "lastname": "Me", "totalprice": 1,
         "depositpaid": False,
@@ -126,7 +128,9 @@ def test_delete_with_auth_returns_201(booker_url, auth_headers):
     resp = httpx.delete(
         f"{booker_url}/booking/{booking_id}", headers=auth_headers, timeout=10
     )
+    # Restful-booker returns 201 (not 204) on successful delete — quirk of the API
     assert resp.status_code == 201
 
+    # Confirm the booking is truly gone
     resp = httpx.get(f"{booker_url}/booking/{booking_id}", timeout=10)
     assert resp.status_code == 404

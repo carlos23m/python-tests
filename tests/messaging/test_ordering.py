@@ -14,6 +14,8 @@ DRAIN_TIMEOUT_S = 15
 def test_messages_persisted_in_published_order(kafka_producer, db, wait_for_rows):
     station_id = f"order-test-{uuid.uuid4().hex[:8]}"
 
+    # temperature_c doubles as a sequence number — avoids adding a dedicated field,
+    # and makes it easy to assert order by comparing values to range(N)
     for seq in range(N):
         kafka_producer.send(
             TOPIC,
@@ -28,6 +30,7 @@ def test_messages_persisted_in_published_order(kafka_producer, db, wait_for_rows
 
     wait_for_rows(station_id, N, timeout=DRAIN_TIMEOUT_S)
 
+    # ORDER BY id ASC reflects insertion order; Kafka guarantees ordering within a single partition
     db.execute(
         "SELECT temperature_c FROM readings WHERE station_id = %s ORDER BY id ASC",
         (station_id,),

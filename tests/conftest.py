@@ -19,6 +19,7 @@ def base_url():
 
 @pytest.fixture(scope="session")
 def db_conn():
+    # One connection for the whole test session — cheaper than reconnecting per test
     conn = psycopg2.connect(DATABASE_URL)
     yield conn
     conn.close()
@@ -30,6 +31,8 @@ def db(db_conn):
     db_conn.autocommit = False
     cur = db_conn.cursor()
     yield cur
+    # Rollback discards any rows written during the test, keeping each test isolated
+    # without needing to DELETE by station_id (which could race with the consumer)
     db_conn.rollback()
     cur.close()
 
@@ -38,6 +41,7 @@ def db(db_conn):
 def wait_for_rows(db):
     """Poll Postgres until at least `expected` rows exist for station_id, or timeout expires."""
     def _wait(station_id: str, expected: int, timeout: int = 20) -> None:
+        # 0.5 s polling interval balances test speed vs. busy-waiting on the consumer
         deadline = time.time() + timeout
         while time.time() < deadline:
             db.execute(
@@ -51,6 +55,7 @@ def wait_for_rows(db):
 
 @pytest.fixture(scope="session")
 def kafka_producer():
+    # Session-scoped: one producer for all messaging tests; avoids repeated broker handshakes
     producer = KafkaProducer(
         bootstrap_servers=KAFKA_BOOTSTRAP,
         value_serializer=lambda v: json.dumps(v).encode("utf-8"),

@@ -4,6 +4,7 @@ Negative cases — bad payloads, missing fields, wrong IDs, unauth'd mutations.
 """
 import httpx
 
+# Minimal valid payload reused by tests that need an existing booking ID without caring about its fields
 _THROWAWAY = {
     "firstname": "Test", "lastname": "QA", "totalprice": 1,
     "depositpaid": False,
@@ -12,6 +13,7 @@ _THROWAWAY = {
 
 
 def test_get_nonexistent_booking_returns_404(booker_url):
+    # 99999999 is chosen to be an ID that almost certainly doesn't exist on the server
     resp = httpx.get(f"{booker_url}/booking/99999999", timeout=10)
     assert resp.status_code == 404
 

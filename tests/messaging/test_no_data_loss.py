@@ -16,6 +16,7 @@ def _count_rows(db, station_id: str) -> int:
 
 
 def test_publish_n_messages_all_persist(kafka_producer, db, wait_for_rows):
+    # uuid suffix isolates this run's rows so a leftover table from a prior run can't inflate the count
     station_id = f"loss-test-{uuid.uuid4().hex[:8]}"
 
     for i in range(N):
@@ -28,6 +29,8 @@ def test_publish_n_messages_all_persist(kafka_producer, db, wait_for_rows):
                 "timestamp": "2026-07-01T00:00:00",
             },
         )
+    # flush() blocks until all messages are handed to the broker; without it the loop
+    # could return before all N messages are actually in Kafka
     kafka_producer.flush()
 
     wait_for_rows(station_id, N, timeout=DRAIN_TIMEOUT_S)

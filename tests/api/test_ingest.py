@@ -15,6 +15,8 @@ VALID_READING = {
 
 @pytest.fixture(scope="module")
 def client(base_url):
+    # module-scoped: one HTTP connection pool for all tests in this file — avoids
+    # the overhead of a TCP handshake per test against the local app
     with httpx.Client(base_url=base_url, timeout=10) as c:
         yield c
 
@@ -57,6 +59,7 @@ def test_ingest_empty_body_returns_422(client):
 
 
 def test_ingest_extra_fields_are_ignored(client):
+    # Pydantic strips unknown fields by default — verify the API doesn't reject or echo them
     payload = {**VALID_READING, "unknown_field": "surprise"}
     resp = client.post("/readings", json=payload)
     assert resp.status_code == 202
@@ -75,6 +78,7 @@ def test_get_readings_returns_200(client):
 def test_get_readings_schema(client):
     resp = client.get("/readings/TEST-001")
     assert resp.status_code == 200
+    # Subset check (<=): allows extra fields in the response without breaking the assertion
     for item in resp.json()["readings"]:
         assert {"id", "station_id", "temperature_c", "humidity_pct", "timestamp"} <= set(item.keys())
 
