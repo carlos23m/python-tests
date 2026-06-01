@@ -1,3 +1,4 @@
+# Designed and created by Carlos Mendez - www.linkedin.com/in/carlos-mendez1 - CR - 2026
 """
 Load test for the weather ingest API.
 Run against YOUR local app only — never against public servers.

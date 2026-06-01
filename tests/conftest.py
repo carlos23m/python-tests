@@ -1,7 +1,8 @@
+# Designed and created by Carlos Mendez - www.linkedin.com/in/carlos-mendez1 - CR - 2026
 import os
 import pytest
 import psycopg2
-from kafka import KafkaProducer, KafkaConsumer
+from kafka import KafkaProducer
 import json
 
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://weather:weather@localhost:5432/weather")
@@ -40,26 +41,3 @@ def kafka_producer():
     )
     yield producer
     producer.close()
-
-
-@pytest.fixture(scope="session")
-def kafka_consumer_factory():
-    """Returns a factory so each test can get a fresh consumer with its own group."""
-    consumers = []
-
-    def _make(group_id: str):
-        c = KafkaConsumer(
-            KAFKA_TOPIC,
-            bootstrap_servers=KAFKA_BOOTSTRAP,
-            group_id=group_id,
-            auto_offset_reset="earliest",
-            enable_auto_commit=False,
-            value_deserializer=lambda b: json.loads(b.decode("utf-8")),
-            consumer_timeout_ms=5000,
-        )
-        consumers.append(c)
-        return c
-
-    yield _make
-    for c in consumers:
-        c.close()

@@ -1,3 +1,4 @@
+# Designed and created by Carlos Mendez - www.linkedin.com/in/carlos-mendez1 - CR - 2026
 """
 Verify that messages published in sequence are persisted in the same order
 (ascending by the sequence number embedded in temperature_c).
@@ -35,6 +36,12 @@ def test_messages_persisted_in_published_order(kafka_producer, db):
             break
         time.sleep(0.5)
 
-    # TODO: query the rows ordered by id (insertion order) and assert
-    # that temperature_c values are 0.0, 1.0, 2.0, ... N-1 in that order
-    ...
+    db.execute(
+        "SELECT temperature_c FROM readings WHERE station_id = %s ORDER BY id ASC",
+        (station_id,),
+    )
+    rows = db.fetchall()
+    assert len(rows) == N, f"Expected {N} rows, got {len(rows)}"
+    assert [r[0] for r in rows] == [float(seq) for seq in range(N)], (
+        "Rows are not in published order"
+    )

@@ -8,9 +8,10 @@ instead of manual verification steps.
 ## What's here
 
 ```
-Two layers of tests
+Three layers of tests
  ├── api_external/   Restful-booker — full CRUD + auth in Python (pytest + httpx)
- └── your pipeline   FastAPI → Kafka → Postgres, with real data-integrity checks
+ ├── your pipeline   FastAPI → Kafka → Postgres, with real data-integrity checks
+ └── aws/            S3 put/get and SQS send/receive against LocalStack
 ```
 
 **Layer 1 — Restful-booker** (`tests/api_external/`)  
@@ -40,10 +41,10 @@ guarantee that matters in event-driven systems.
 ## Quick start
 
 ```bash
-# bring up the whole stack
+# bring up the whole stack (app + consumer + kafka + postgres + localstack)
 docker compose up -d
 
-# wait ~15 s for Kafka + Postgres to be ready, then
+# wait ~20 s for all services to be healthy, then
 pip install -r requirements.txt
 
 # Layer 1 — no Docker needed
@@ -51,6 +52,9 @@ pytest tests/api_external/ -v
 
 # Layer 2 — needs Docker stack
 pytest tests/unit/ tests/api/ tests/messaging/ -v
+
+# Layer 3 — AWS / LocalStack
+pytest tests/aws/ -v
 
 # Load test (against local app only, never a public API)
 locust -f tests/performance/locustfile.py --headless -u 20 -r 2 --run-time 60s
@@ -63,13 +67,15 @@ smoke test. See [.github/workflows/ci.yml](.github/workflows/ci.yml).
 
 ## Load test results
 
-> Fill this in once you have numbers. One ASCII chart + p50/p95/p99 latencies
-> and the max RPS your local stack sustained without errors goes a long way in
-> a recruiter conversation.
+Run `locust -f tests/performance/locustfile.py --headless -u 20 -r 2 --run-time 60s --host http://localhost:8000` locally and paste p50/p95/RPS here.
 
 ## Project background
 
 At IntelliCentrics I verified data flows manually — that a message published to
 a queue eventually landed in the right database, in the right shape, with no
 duplicates. This repo automates exactly that verification in Python, adds
-performance baselines, and tacks on LocalStack to cover the AWS-service pieces.
+performance baselines, and includes S3/SQS smoke tests against LocalStack.
+
+---
+
+Designed and created by Carlos Mendez - www.linkedin.com/in/carlos-mendez1 - CR - 2026

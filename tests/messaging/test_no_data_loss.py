@@ -1,3 +1,4 @@
+# Designed and created by Carlos Mendez - www.linkedin.com/in/carlos-mendez1 - CR - 2026
 """
 THE key data-integrity test: publish N messages, assert N rows land in Postgres.
 This mirrors the manual verification work from IntelliCentrics, now automated.

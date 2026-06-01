@@ -1,3 +1,4 @@
+# Designed and created by Carlos Mendez - www.linkedin.com/in/carlos-mendez1 - CR - 2026
 """
 Poison-message test: a malformed message on the topic must NOT crash the consumer.
 The consumer should log the error, skip the bad message, and keep processing.
@@ -63,12 +64,60 @@ def test_consumer_survives_poison_message_and_processes_next(
 
 
 def test_missing_required_field_is_skipped(kafka_producer, db):
-    # TODO: publish a message missing the station_id key
-    # assert consumer keeps running (send a good message after and verify it lands)
-    ...
+    station_id_after = f"after-missing-{uuid.uuid4().hex[:8]}"
+
+    kafka_producer.send(TOPIC, value={"temperature_c": 20.0, "humidity_pct": 50.0})
+    kafka_producer.flush()
+
+    kafka_producer.send(TOPIC, value=_good_payload(station_id_after))
+    kafka_producer.flush()
+
+    deadline = time.time() + DRAIN_TIMEOUT_S
+    while time.time() < deadline:
+        db.execute(
+            "SELECT COUNT(*) FROM readings WHERE station_id = %s", (station_id_after,)
+        )
+        if db.fetchone()[0] >= 1:
+            break
+        time.sleep(0.5)
+
+    db.execute(
+        "SELECT COUNT(*) FROM readings WHERE station_id = %s", (station_id_after,)
+    )
+    assert db.fetchone()[0] == 1, (
+        f"Consumer crashed after missing-field message — {station_id_after} never arrived"
+    )
 
 
 def test_wrong_type_for_temperature_is_skipped(kafka_producer, db):
-    # TODO: publish {"station_id": "X", "temperature_c": "not-a-number", "humidity_pct": 50}
-    # assert consumer keeps running
-    ...
+    station_id_after = f"after-badtype-{uuid.uuid4().hex[:8]}"
+
+    kafka_producer.send(
+        TOPIC,
+        value={
+            "station_id": "bad-type-station",
+            "temperature_c": "not-a-number",
+            "humidity_pct": 50.0,
+            "timestamp": "2026-07-01T00:00:00",
+        },
+    )
+    kafka_producer.flush()
+
+    kafka_producer.send(TOPIC, value=_good_payload(station_id_after))
+    kafka_producer.flush()
+
+    deadline = time.time() + DRAIN_TIMEOUT_S
+    while time.time() < deadline:
+        db.execute(
+            "SELECT COUNT(*) FROM readings WHERE station_id = %s", (station_id_after,)
+        )
+        if db.fetchone()[0] >= 1:
+            break
+        time.sleep(0.5)
+
+    db.execute(
+        "SELECT COUNT(*) FROM readings WHERE station_id = %s", (station_id_after,)
+    )
+    assert db.fetchone()[0] == 1, (
+        f"Consumer crashed after wrong-type temperature — {station_id_after} never arrived"
+    )

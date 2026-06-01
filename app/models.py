@@ -1,3 +1,4 @@
+# Designed and created by Carlos Mendez - www.linkedin.com/in/carlos-mendez1 - CR - 2026
 import os
 from sqlalchemy import create_engine, Column, String, Float, DateTime, Integer
 from sqlalchemy.orm import declarative_base, sessionmaker
@@ -24,7 +25,7 @@ def init_db():
     Base.metadata.create_all(bind=engine)
 
 
-def save_reading(station_id: str, limit: int = 50):
+def get_recent_readings(station_id: str, limit: int = 50):
     with SessionLocal() as session:
         rows = (
             session.query(Reading)

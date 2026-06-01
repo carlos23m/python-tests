@@ -1,3 +1,4 @@
+# Designed and created by Carlos Mendez - www.linkedin.com/in/carlos-mendez1 - CR - 2026
 """
 Idempotency check: publishing the same message twice should not produce
 duplicate rows (if the consumer is designed to be idempotent).

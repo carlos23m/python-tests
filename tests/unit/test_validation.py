@@ -1,3 +1,4 @@
+# Designed and created by Carlos Mendez - www.linkedin.com/in/carlos-mendez1 - CR - 2026
 """
 Unit tests for input validation in the WeatherReading model.
 No I/O — these run without Docker.

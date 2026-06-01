@@ -1,3 +1,4 @@
+# Designed and created by Carlos Mendez - www.linkedin.com/in/carlos-mendez1 - CR - 2026
 name: CI
 
 on:
@@ -8,21 +9,6 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-
-    services:
-      postgres:
-        image: postgres:15-alpine
-        env:
-          POSTGRES_USER: weather
-          POSTGRES_PASSWORD: weather
-          POSTGRES_DB: weather
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U weather"
-          --health-interval 5s
-          --health-timeout 3s
-          --health-retries 10
 
     steps:
       - uses: actions/checkout@v4
@@ -44,9 +30,16 @@ jobs:
         run: pytest tests/api_external/ -v --tb=short
 
       # ── Layer 2: own pipeline ─────────────────────────────────────────────
-      - name: Start Kafka via Docker Compose
-        run: docker compose up -d zookeeper kafka
-        # wait for Kafka to be ready
+      - name: Start infra (postgres, kafka, localstack)
+        run: docker compose up -d postgres zookeeper kafka localstack
+
+      - name: Wait for Postgres
+        run: |
+          for i in $(seq 1 20); do
+            docker compose exec -T postgres pg_isready -U weather && break
+            sleep 3
+          done
+
       - name: Wait for Kafka
         run: |
           for i in $(seq 1 20); do
@@ -55,11 +48,15 @@ jobs:
             sleep 3
           done
 
-      - name: Start app
-        run: docker compose up -d app
-        env:
-          DATABASE_URL: postgresql://weather:weather@localhost:5432/weather
-          KAFKA_BOOTSTRAP_SERVERS: localhost:9092
+      - name: Start app and consumer
+        run: docker compose up -d app consumer
+
+      - name: Wait for app
+        run: |
+          for i in $(seq 1 20); do
+            curl -sf http://localhost:8000/health && break
+            sleep 3
+          done
 
       - name: Unit tests
         run: pytest tests/unit/ -v --tb=short
@@ -74,6 +71,9 @@ jobs:
         env:
           DATABASE_URL: postgresql://weather:weather@localhost:5432/weather
           KAFKA_BOOTSTRAP_SERVERS: localhost:9092
+
+      - name: AWS / LocalStack tests
+        run: pytest tests/aws/ -v --tb=short
 
       # ── Load smoke (60 s, fails on >5 % error rate) ──────────────────────
       - name: Load smoke test

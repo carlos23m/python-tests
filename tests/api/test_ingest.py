@@ -1,3 +1,4 @@
+# Designed and created by Carlos Mendez - www.linkedin.com/in/carlos-mendez1 - CR - 2026
 """
 Tests for your own FastAPI endpoints.
 Requires the app to be running (docker compose up app, or pytest with live server).

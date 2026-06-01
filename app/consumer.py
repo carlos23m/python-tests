@@ -1,3 +1,4 @@
+# Designed and created by Carlos Mendez - www.linkedin.com/in/carlos-mendez1 - CR - 2026
 """
 Run as a standalone process:  python -m app.consumer
 
@@ -7,6 +8,7 @@ A malformed message is logged and skipped — it must NOT crash the consumer.
 import json
 import logging
 import os
+from datetime import datetime, timezone
 from kafka import KafkaConsumer
 from app.models import init_db, insert_reading
 
@@ -33,11 +35,12 @@ def run():
     for message in consumer:
         try:
             data = message.value
+            raw_ts = data.get("timestamp")
             insert_reading({
                 "station_id": data["station_id"],
                 "temperature_c": float(data["temperature_c"]),
                 "humidity_pct": float(data["humidity_pct"]),
-                "timestamp": data.get("timestamp"),
+                "timestamp": datetime.fromisoformat(raw_ts) if raw_ts else datetime.now(timezone.utc),
             })
             logger.info("Persisted reading from station %s", data.get("station_id"))
         except Exception:
