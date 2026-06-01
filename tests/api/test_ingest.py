@@ -36,6 +36,7 @@ def test_ingest_valid_reading_returns_202(client):
 
 def test_ingest_response_contains_station_id(client):
     resp = client.post("/readings", json=VALID_READING)
+    assert resp.status_code == 202
     assert resp.json()["station_id"] == VALID_READING["station_id"]
 
 

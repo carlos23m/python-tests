@@ -22,4 +22,4 @@ def _get_producer() -> KafkaProducer:
 def publish_reading(payload: dict) -> None:
     producer = _get_producer()
     future = producer.send(TOPIC, value=payload)
-    future.get(timeout=10)  # block until broker acks; raises on failure
+    future.get(timeout=5)  # block until broker acks; raises on failure
