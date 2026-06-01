@@ -1,0 +1,49 @@
+"""
+Run as a standalone process:  python -m app.consumer
+
+Reads weather readings from Kafka and persists each one to Postgres.
+A malformed message is logged and skipped — it must NOT crash the consumer.
+"""
+import json
+import logging
+import os
+from kafka import KafkaConsumer
+from app.models import init_db, insert_reading
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+BOOTSTRAP_SERVERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
+TOPIC = os.getenv("KAFKA_TOPIC", "weather-readings")
+GROUP_ID = os.getenv("KAFKA_GROUP_ID", "weather-consumer")
+
+
+def run():
+    init_db()
+    consumer = KafkaConsumer(
+        TOPIC,
+        bootstrap_servers=BOOTSTRAP_SERVERS,
+        group_id=GROUP_ID,
+        auto_offset_reset="earliest",
+        enable_auto_commit=True,
+        value_deserializer=lambda b: json.loads(b.decode("utf-8")),
+    )
+
+    logger.info("Consumer started — listening on topic '%s'", TOPIC)
+    for message in consumer:
+        try:
+            data = message.value
+            insert_reading({
+                "station_id": data["station_id"],
+                "temperature_c": float(data["temperature_c"]),
+                "humidity_pct": float(data["humidity_pct"]),
+                "timestamp": data.get("timestamp"),
+            })
+            logger.info("Persisted reading from station %s", data.get("station_id"))
+        except Exception:
+            # Poison message — log and continue; never crash the loop
+            logger.exception("Skipping malformed message: %s", message.value)
+
+
+if __name__ == "__main__":
+    run()
