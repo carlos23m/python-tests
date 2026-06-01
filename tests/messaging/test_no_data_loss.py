@@ -5,7 +5,6 @@ This mirrors the manual verification work from IntelliCentrics, now automated.
 """
 import time
 import uuid
-import pytest
 
 TOPIC = "weather-readings"
 N = 20

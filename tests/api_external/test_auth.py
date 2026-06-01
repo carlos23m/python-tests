@@ -3,7 +3,6 @@
 Auth / token endpoint — restful-booker.herokuapp.com/auth
 """
 import httpx
-import pytest
 
 
 def test_valid_credentials_return_token(booker_url):

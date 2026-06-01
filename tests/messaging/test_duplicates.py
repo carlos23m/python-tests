@@ -9,7 +9,6 @@ add deduplication logic (at which point it should assert count == 1).
 """
 import time
 import uuid
-import pytest
 
 TOPIC = "weather-readings"
 DRAIN_TIMEOUT_S = 10

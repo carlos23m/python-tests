@@ -3,7 +3,6 @@
 Negative cases — bad payloads, missing fields, wrong IDs, unauth'd mutations.
 """
 import httpx
-import pytest
 
 
 def test_get_nonexistent_booking_returns_404(booker_url):

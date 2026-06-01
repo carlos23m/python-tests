@@ -102,7 +102,7 @@ def test_delete_requires_auth(booker_url, created_booking_id):
     assert resp.status_code == 403
 
 
-def test_delete_with_auth_returns_201(booker_url, auth_headers, booker_url=None):
+def test_delete_with_auth_returns_201(booker_url, auth_headers):
     # create a throwaway booking then delete it
     # TODO:
     #   1. POST a new booking → get its ID

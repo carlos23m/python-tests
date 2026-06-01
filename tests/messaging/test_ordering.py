@@ -5,7 +5,6 @@ Verify that messages published in sequence are persisted in the same order
 """
 import time
 import uuid
-import pytest
 
 TOPIC = "weather-readings"
 N = 10

@@ -3,7 +3,6 @@
 Poison-message test: a malformed message on the topic must NOT crash the consumer.
 The consumer should log the error, skip the bad message, and keep processing.
 """
-import json
 import time
 import uuid
 import pytest
