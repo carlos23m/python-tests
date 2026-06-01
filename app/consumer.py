@@ -28,13 +28,12 @@ def run():
         group_id=GROUP_ID,
         auto_offset_reset="earliest",
         enable_auto_commit=True,
-        value_deserializer=lambda b: json.loads(b.decode("utf-8")),
     )
 
     logger.info("Consumer started — listening on topic '%s'", TOPIC)
     for message in consumer:
         try:
-            data = message.value
+            data = json.loads(message.value.decode("utf-8"))
             raw_ts = data.get("timestamp")
             insert_reading({
                 "station_id": data["station_id"],
